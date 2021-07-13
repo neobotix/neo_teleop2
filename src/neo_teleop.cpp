@@ -34,131 +34,140 @@
 
 #include <sensor_msgs/msg/joy.hpp>
 #include <geometry_msgs/msg/twist.hpp>
+#include <memory>
 #include "rclcpp/rclcpp.hpp"
 
 using std::placeholders::_1;
 using std::placeholders::_2;
 
-class NeoTeleop: public rclcpp::Node {
+class NeoTeleop : public rclcpp::Node
+{
 public:
-	NeoTeleop(): Node("neo_teleop2_node")
-	{
-		this->get_parameter_or("scale_linear_x", linear_scale_x, 0.4);
-		this->get_parameter_or("scale_linear_y", linear_scale_y, 0.4);
-		this->get_parameter_or("scale_angular_z", angular_scale_z, 0.6);
-		this->get_parameter_or("axis_linear_x", axis_linear_x, 1);
-		this->get_parameter_or("axis_linear_y", axis_linear_y, 0);
-		this->get_parameter_or("axis_angular_z", axis_angular_z, 2);
-		this->get_parameter_or("smooth_factor", smooth_factor, 0.2);
-		this->get_parameter_or("deadman_button", deadman_button, 5);
-		this->get_parameter_or("joy_timeout", joy_timeout, 1.);
-		vel_pub = this->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 1);
-		joy_sub = this->create_subscription<sensor_msgs::msg::Joy>("/joy", 1, std::bind(&NeoTeleop::joy_callback, this, _1));
-	}
+  NeoTeleop()
+  : Node("neo_teleop2_node")
+  {
+    // declare Parameters
+    this->declare_parameter<double>("scale_linear_x", 0.4);
+    this->declare_parameter<double>("scale_linear_y", 0.4);
+    this->declare_parameter<double>("scale_angular_z", 0.6);
+    this->declare_parameter<int>("axis_linear_x", 1);
+    this->declare_parameter<int>("axis_linear_y", 0);
+    this->declare_parameter<int>("axis_angular_z", 2);
+    this->declare_parameter<double>("smooth_factor", 0.2);
+    this->declare_parameter<int>("deadman_button", 5);
+    this->declare_parameter<double>("joy_timeout", 1.);
 
+    // Get Paramters
+    this->get_parameter("scale_linear_x", linear_scale_x);
+    this->get_parameter("scale_linear_y", linear_scale_y);
+    this->get_parameter("scale_angular_z", angular_scale_z);
+    this->get_parameter("axis_linear_x", axis_linear_x);
+    this->get_parameter("axis_linear_y", axis_linear_y);
+    this->get_parameter("axis_angular_z", axis_angular_z);
+    this->get_parameter("smooth_factor", smooth_factor);
+    this->get_parameter("deadman_button", deadman_button);
+    this->get_parameter("joy_timeout", joy_timeout);
 
-	void send_cmd();
+    vel_pub = this->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 1);
+    joy_sub = this->create_subscription<sensor_msgs::msg::Joy>(
+      "/joy", 1,
+      std::bind(&NeoTeleop::joy_callback, this, _1));
+  }
+
+  void send_cmd();
 
 protected:
-	void joy_callback(const sensor_msgs::msg::Joy::SharedPtr joy);
+  void joy_callback(const sensor_msgs::msg::Joy::SharedPtr joy);
 
 private:
-	rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr vel_pub;
-	rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr joy_sub;
-	geometry_msgs::msg::Twist cmd_vel;
+  rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr vel_pub;
+  rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr joy_sub;
+  geometry_msgs::msg::Twist cmd_vel;
 
-	double linear_scale_x = 0;
-	double linear_scale_y = 0;
-	double angular_scale_z = 0;
-	double smooth_factor = 1;
-	double joy_timeout = 0;
-	int axis_linear_x = -1;
-	int axis_linear_y = -1;
-	int axis_angular_z = -1;
-	int deadman_button = -1;
+  double linear_scale_x = 0;
+  double linear_scale_y = 0;
+  double angular_scale_z = 0;
+  double smooth_factor = 1;
+  double joy_timeout = 0;
+  int axis_linear_x = -1;
+  int axis_linear_y = -1;
+  int axis_angular_z = -1;
+  int deadman_button = -1;
 
-	rclcpp::Time last_joy_time;
-	double joy_command_x = 0;
-	double joy_command_y = 0;
-	double joy_command_z = 0;
+  rclcpp::Time last_joy_time;
+  double joy_command_x = 0;
+  double joy_command_y = 0;
+  double joy_command_z = 0;
 
-	bool is_active = false;
-	bool is_deadman_pressed = false;
-
+  bool is_active = false;
+  bool is_deadman_pressed = false;
 };
 
 
 void NeoTeleop::joy_callback(const sensor_msgs::msg::Joy::SharedPtr joy)
 {
-	last_joy_time = rclcpp::Clock().now();
+  last_joy_time = rclcpp::Clock().now();
 
-	if(deadman_button >= 0 && deadman_button < (int)joy->buttons.size()) {
-		is_deadman_pressed = (bool)joy->buttons[deadman_button];
-	} else {
-		is_deadman_pressed = false;
-	}
-	if(is_deadman_pressed) {
-		is_active = true;
-	}
+  if (deadman_button >= 0 && deadman_button < static_cast<int>(joy->buttons.size())) {
+    is_deadman_pressed = static_cast<bool>(joy->buttons[deadman_button]);
+  } else {
+    is_deadman_pressed = false;
+  }
+  if (is_deadman_pressed) {
+    is_active = true;
+  }
 
-	if(axis_linear_x >= 0 && axis_linear_x < (int)joy->axes.size()) {
-		joy_command_x = linear_scale_x * joy->axes[axis_linear_x];
-	}
-	if(axis_linear_y >= 0 && axis_linear_y < (int)joy->axes.size()) {
-		joy_command_y = linear_scale_y * joy->axes[axis_linear_y];
-	}
-	if(axis_angular_z >= 0 && axis_angular_z < (int)joy->axes.size()) {
-		joy_command_z = angular_scale_z * joy->axes[axis_angular_z];
-	}
+  if (axis_linear_x >= 0 && axis_linear_x < static_cast<int>(joy->axes.size())) {
+    joy_command_x = linear_scale_x * joy->axes[axis_linear_x];
+  }
+  if (axis_linear_y >= 0 && axis_linear_y < static_cast<int>(joy->axes.size())) {
+    joy_command_y = linear_scale_y * joy->axes[axis_linear_y];
+  }
+  if (axis_angular_z >= 0 && axis_angular_z < static_cast<int>(joy->axes.size())) {
+    joy_command_z = angular_scale_z * joy->axes[axis_angular_z];
+  }
 }
 
 void NeoTeleop::send_cmd()
 {
-	if(is_deadman_pressed)
-	{
-		// smooth inputs
-		cmd_vel.linear.x = joy_command_x * smooth_factor + cmd_vel.linear.x * (1 - smooth_factor);
-		cmd_vel.linear.y = joy_command_y * smooth_factor + cmd_vel.linear.y * (1 - smooth_factor);
-		cmd_vel.angular.z = joy_command_z * smooth_factor + cmd_vel.angular.z * (1 - smooth_factor);
+  if (is_deadman_pressed) {
+    // smooth inputs
+    cmd_vel.linear.x = joy_command_x * smooth_factor + cmd_vel.linear.x * (1 - smooth_factor);
+    cmd_vel.linear.y = joy_command_y * smooth_factor + cmd_vel.linear.y * (1 - smooth_factor);
+    cmd_vel.angular.z = joy_command_z * smooth_factor + cmd_vel.angular.z * (1 - smooth_factor);
 
-		// publish
-		vel_pub->publish(cmd_vel);
-	}
-	else if(is_active)
-	{
-		if((rclcpp::Clock().now() - last_joy_time).seconds() > joy_timeout)
-		{
-			cmd_vel = geometry_msgs::msg::Twist();		// set to all zero
-			is_active = false;
-		}
-		else {
-			// smooth towards zero
-			cmd_vel.linear.x = cmd_vel.linear.x * (1 - smooth_factor);
-			cmd_vel.linear.y = cmd_vel.linear.y * (1 - smooth_factor);
-			cmd_vel.angular.z = cmd_vel.angular.z * (1 - smooth_factor);
-		}
-
-		// publish
-		vel_pub->publish(cmd_vel);
-	}
+    // publish
+    vel_pub->publish(cmd_vel);
+  } else if (is_active) {
+    if ((rclcpp::Clock().now() - last_joy_time).seconds() > joy_timeout) {
+      cmd_vel = geometry_msgs::msg::Twist();      // set to all zero
+      is_active = false;
+    } else {
+      // smooth towards zero
+      cmd_vel.linear.x = cmd_vel.linear.x * (1 - smooth_factor);
+      cmd_vel.linear.y = cmd_vel.linear.y * (1 - smooth_factor);
+      cmd_vel.angular.z = cmd_vel.angular.z * (1 - smooth_factor);
+    }
+    // publish
+    vel_pub->publish(cmd_vel);
+  }
 }
 
 
-int main(int argc, char** argv)
+int main(int argc, char ** argv)
 {
-	rclcpp::init(argc, argv);
-	auto nh = std::make_shared<NeoTeleop>();
-	double control_rate = 50;
-	rclcpp::Rate loop_rate(control_rate);
+  rclcpp::init(argc, argv);
+  auto nh = std::make_shared<NeoTeleop>();
+  double control_rate = 50;
+  rclcpp::Rate loop_rate(control_rate);
 
-	while(rclcpp::ok())
-	{
-		nh->send_cmd();
+  while (rclcpp::ok()) {
+    nh->send_cmd();
 
-		loop_rate.sleep();
+    loop_rate.sleep();
 
-		rclcpp::spin_some(nh);
-	}
+    rclcpp::spin_some(nh);
+  }
 
-	return 0;
+  return 0;
 }
