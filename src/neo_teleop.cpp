@@ -68,9 +68,9 @@ public:
     this->get_parameter("deadman_button", deadman_button);
     this->get_parameter("joy_timeout", joy_timeout);
 
-    vel_pub = this->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 1);
+    vel_pub = this->create_publisher<geometry_msgs::msg::Twist>("cmd_vel", 1);
     joy_sub = this->create_subscription<sensor_msgs::msg::Joy>(
-      "/joy", 1,
+      "joy", 1,
       std::bind(&NeoTeleop::joy_callback, this, _1));
   }
 
