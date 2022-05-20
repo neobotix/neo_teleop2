@@ -106,8 +106,6 @@ private:
 
 void NeoTeleop::joy_callback(const sensor_msgs::msg::Joy::SharedPtr joy)
 {
-  last_joy_time = rclcpp::Clock().now();
-
   if (deadman_button >= 0 && deadman_button < static_cast<int>(joy->buttons.size())) {
     is_deadman_pressed = static_cast<bool>(joy->buttons[deadman_button]);
   } else {
@@ -115,6 +113,7 @@ void NeoTeleop::joy_callback(const sensor_msgs::msg::Joy::SharedPtr joy)
   }
   if (is_deadman_pressed) {
     is_active = true;
+    last_joy_time = rclcpp::Clock().now();
   }
 
   if (axis_linear_x >= 0 && axis_linear_x < static_cast<int>(joy->axes.size())) {
