@@ -152,6 +152,7 @@ void NeoTeleopAdvanced::joy_callback(const sensor_msgs::msg::Joy::SharedPtr joy)
           }
 
         auto result = unset_relay_client->async_send_request(request);
+        is_software_stop = false;
       } 
     m_last_cmd_time = rclcpp::Clock().now();
   }
