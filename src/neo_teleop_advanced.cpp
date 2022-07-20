@@ -123,15 +123,15 @@ void NeoTeleopAdvanced::joy_callback(const sensor_msgs::msg::Joy::SharedPtr joy)
 {
   if (static_cast<bool>(joy->buttons[stop_button])) {
     if (!is_software_stop) {
-      RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Setting software EM stop");
+      RCLCPP_INFO(this->get_logger(), "Setting software EM stop");
       auto request = std::make_shared<neo_srvs2::srv::RelayBoardSetEMStop::Request>();
 
         while (!set_relay_client->wait_for_service(1s)) {
           if (!rclcpp::ok()) {
-            RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Interrupted while waiting for the service. Exiting.");
+            RCLCPP_ERROR(this->get_logger(), "Interrupted while waiting for the service. Exiting.");
             return;
           }
-          RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "service not available, waiting again...");
+          RCLCPP_INFO(this->get_logger(), "service not available, waiting again...");
         }
 
         auto result = set_relay_client->async_send_request(request);
@@ -139,18 +139,18 @@ void NeoTeleopAdvanced::joy_callback(const sensor_msgs::msg::Joy::SharedPtr joy)
         if (rclcpp::spin_until_future_complete(this->get_node_base_interface(), result) !=
           rclcpp::FutureReturnCode::SUCCESS)
         {
-          RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Failed");
+          RCLCPP_ERROR(this->get_logger(), "Failed");
         } 
       } else  {
-          RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Unsetting software EM stop");
+          RCLCPP_INFO(this->get_logger(), "Unsetting software EM stop");
           auto request = std::make_shared<neo_srvs2::srv::RelayBoardUnSetEMStop::Request>();
 
           while (!unset_relay_client->wait_for_service(1s)) {
             if (!rclcpp::ok()) {
-              RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Interrupted while waiting for the service. Exiting.");
+              RCLCPP_ERROR(this->get_logger(), "Interrupted while waiting for the service. Exiting.");
               return;
             }
-            RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "service not available, waiting again...");
+            RCLCPP_INFO(this->get_logger(), "service not available, waiting again...");
           }
 
         auto result = unset_relay_client->async_send_request(request);
@@ -158,7 +158,7 @@ void NeoTeleopAdvanced::joy_callback(const sensor_msgs::msg::Joy::SharedPtr joy)
         if (rclcpp::spin_until_future_complete(this->get_node_base_interface(), result) !=
           rclcpp::FutureReturnCode::SUCCESS)
         {
-          RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Failed");
+          RCLCPP_ERROR(this->get_logger(), "Failed");
         }
       } 
     
