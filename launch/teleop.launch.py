@@ -11,8 +11,8 @@ def generate_launch_description():
     config = os.path.join(get_package_share_directory('neo_teleop2'),'launch','default.yaml')
     return launch.LaunchDescription([
         launch_ros.actions.Node(
-            package='neo_teleop2', executable='neo_teleop2_node', output='screen',
-            name='neo_teleop2_node', parameters = [config]), 
+            package='neo_teleop2', executable='neo_teleop2_advanced_node', output='screen',
+            name='neo_teleop2_advanced_node', parameters = [config]), 
         launch_ros.actions.Node(
             package='joy', 
             executable='joy_node', 

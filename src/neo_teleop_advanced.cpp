@@ -102,6 +102,8 @@ private:
   double angular_scale_z = 0;
   double smooth_factor = 1;
   double joy_timeout = 0;
+  rclcpp::Time m_last_cmd_time;
+
   int axis_linear_x = -1;
   int axis_linear_y = -1;
   int axis_angular_z = -1;
@@ -121,7 +123,8 @@ private:
 
 void NeoTeleopAdvanced::joy_callback(const sensor_msgs::msg::Joy::SharedPtr joy)
 {
-  if (static_cast<bool>(joy->buttons[stop_button])) {
+  auto now = rclcpp::Clock().now();
+  if (static_cast<bool>(joy->buttons[stop_button]) && (now - m_last_cmd_time).seconds() > 2.0) {
     if (!is_software_stop) {
       RCLCPP_INFO(this->get_logger(), "Setting software EM stop");
       auto request = std::make_shared<neo_srvs2::srv::RelayBoardSetEMStop::Request>();
@@ -135,12 +138,7 @@ void NeoTeleopAdvanced::joy_callback(const sensor_msgs::msg::Joy::SharedPtr joy)
         }
 
         auto result = set_relay_client->async_send_request(request);
-        // Wait for the result.
-        if (rclcpp::spin_until_future_complete(this->get_node_base_interface(), result) !=
-          rclcpp::FutureReturnCode::SUCCESS)
-        {
-          RCLCPP_ERROR(this->get_logger(), "Failed");
-        } 
+        is_software_stop = true;
       } else  {
           RCLCPP_INFO(this->get_logger(), "Unsetting software EM stop");
           auto request = std::make_shared<neo_srvs2::srv::RelayBoardUnSetEMStop::Request>();
@@ -154,14 +152,8 @@ void NeoTeleopAdvanced::joy_callback(const sensor_msgs::msg::Joy::SharedPtr joy)
           }
 
         auto result = unset_relay_client->async_send_request(request);
-        // Wait for the result.
-        if (rclcpp::spin_until_future_complete(this->get_node_base_interface(), result) !=
-          rclcpp::FutureReturnCode::SUCCESS)
-        {
-          RCLCPP_ERROR(this->get_logger(), "Failed");
-        }
       } 
-    
+    m_last_cmd_time = rclcpp::Clock().now();
   }
 
   if (deadman_button >= 0 && deadman_button < static_cast<int>(joy->buttons.size())) {
