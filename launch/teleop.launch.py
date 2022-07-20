@@ -18,5 +18,5 @@ def generate_launch_description():
             executable='joy_node', 
             output='screen',
             name='joy_node',
-            parameters = [{'dev': "/dev/input/js0"}, {'deadzone':0.12}])
+            parameters = [{'dev': "/dev/input/js0"}, {'deadzone':0.12}, { 'dev_ff': "/dev/input/event7"}])
     ])
