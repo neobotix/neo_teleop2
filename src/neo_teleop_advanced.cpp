@@ -126,20 +126,21 @@ void NeoTeleopAdvanced::joy_callback(const sensor_msgs::msg::Joy::SharedPtr joy)
       RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Setting software EM stop");
       auto request = std::make_shared<neo_srvs2::srv::RelayBoardSetEMStop::Request>();
 
-      while (!set_relay_client->wait_for_service(1s)) {
-        if (!rclcpp::ok()) {
-          RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Interrupted while waiting for the service. Exiting.");
-          return;
+        while (!set_relay_client->wait_for_service(1s)) {
+          if (!rclcpp::ok()) {
+            RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Interrupted while waiting for the service. Exiting.");
+            return;
+          }
+          RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "service not available, waiting again...");
         }
-        RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "service not available, waiting again...");
-      }
 
-      auto result = set_relay_client->async_send_request(request);
-      // Wait for the result.
-      if (rclcpp::spin_until_future_complete(this->get_node_base_interface(), result) !=
-        rclcpp::FutureReturnCode::SUCCESS)
-      {
-        RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Failed");
+        auto result = set_relay_client->async_send_request(request);
+        // Wait for the result.
+        if (rclcpp::spin_until_future_complete(this->get_node_base_interface(), result) !=
+          rclcpp::FutureReturnCode::SUCCESS)
+        {
+          RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Failed");
+        } 
       } else  {
           RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Unsetting software EM stop");
           auto request = std::make_shared<neo_srvs2::srv::RelayBoardUnSetEMStop::Request>();
@@ -160,7 +161,7 @@ void NeoTeleopAdvanced::joy_callback(const sensor_msgs::msg::Joy::SharedPtr joy)
           RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Failed");
         }
       } 
-    }
+    
   }
 
   if (deadman_button >= 0 && deadman_button < static_cast<int>(joy->buttons.size())) {
