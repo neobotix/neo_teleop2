@@ -33,11 +33,13 @@
  *********************************************************************/
 
 #include <sensor_msgs/msg/joy.hpp>
+#include <sensor_msgs/msg/joy_feedback.hpp>
 #include <geometry_msgs/msg/twist.hpp>
 #include <memory>
 #include "rclcpp/rclcpp.hpp"
 #include <neo_srvs2/srv/relay_board_set_em_stop.hpp>
 #include <neo_srvs2/srv/relay_board_un_set_em_stop.hpp>
+#include <neo_msgs2/msg/emergency_stop_state.hpp>
 
 #include <chrono>
 
@@ -76,9 +78,15 @@ public:
     this->get_parameter("joy_timeout", joy_timeout);
 
     vel_pub = this->create_publisher<geometry_msgs::msg::Twist>("cmd_vel", 1);
+    feedback_pub = this->create_publisher<sensor_msgs::msg::JoyFeedback>("/joy/set_feedback", 1);
+
     joy_sub = this->create_subscription<sensor_msgs::msg::Joy>(
       "joy", 1,
       std::bind(&NeoTeleopAdvanced::joy_callback, this, _1));
+    emstop_sub = this->create_subscription<neo_msgs2::msg::EmergencyStopState>(
+      "emergency_stop_state", 1,
+      std::bind(&NeoTeleopAdvanced::emstop_callback, this, _1));
+
     set_relay_client = this->create_client<neo_srvs2::srv::RelayBoardSetEMStop>(
       "set_EMstop");
     unset_relay_client = this->create_client<neo_srvs2::srv::RelayBoardUnSetEMStop>(
@@ -89,20 +97,27 @@ public:
 
 protected:
   void joy_callback(const sensor_msgs::msg::Joy::SharedPtr joy);
+  void emstop_callback(const neo_msgs2::msg::EmergencyStopState::SharedPtr msg);
 
 private:
   rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr vel_pub;
+  rclcpp::Publisher<sensor_msgs::msg::JoyFeedback>::SharedPtr feedback_pub;
+
   rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr joy_sub;
+  rclcpp::Subscription<neo_msgs2::msg::EmergencyStopState>::SharedPtr emstop_sub;
+
   rclcpp::Client<neo_srvs2::srv::RelayBoardSetEMStop>::SharedPtr set_relay_client;
   rclcpp::Client<neo_srvs2::srv::RelayBoardUnSetEMStop>::SharedPtr unset_relay_client;
   geometry_msgs::msg::Twist cmd_vel;
+  sensor_msgs::msg::JoyFeedback rumble;
 
   double linear_scale_x = 0;
   double linear_scale_y = 0;
   double angular_scale_z = 0;
   double smooth_factor = 1;
   double joy_timeout = 0;
-  rclcpp::Time m_last_cmd_time;
+  rclcpp::Time m_last_cmd_emstop_time;
+  rclcpp::Time m_last_cmd_rumble_time;
 
   int axis_linear_x = -1;
   int axis_linear_y = -1;
@@ -118,13 +133,31 @@ private:
   bool is_active = false;
   bool is_deadman_pressed = false;
   bool is_software_stop = false;
+  bool is_emstop = false;
 };
 
+void NeoTeleopAdvanced::emstop_callback(const neo_msgs2::msg::EmergencyStopState::SharedPtr msg)
+{
+  is_emstop = msg->emergency_button_stop || msg->scanner_stop;
+}
 
 void NeoTeleopAdvanced::joy_callback(const sensor_msgs::msg::Joy::SharedPtr joy)
 {
-  auto now = rclcpp::Clock().now();
-  if (static_cast<bool>(joy->buttons[stop_button]) && (now - m_last_cmd_time).seconds() > 2.0) {
+  if (deadman_button >= 0 && deadman_button < static_cast<int>(joy->buttons.size())) {
+    is_deadman_pressed = static_cast<bool>(joy->buttons[deadman_button]);
+  } else {
+    is_deadman_pressed = false;
+  }
+
+  if (is_emstop && is_deadman_pressed && (rclcpp::Clock().now() - m_last_cmd_rumble_time).seconds() > 2.0) {
+    rumble.type = 1;
+    rumble.intensity = 0.8;
+    feedback_pub->publish(rumble);
+    m_last_cmd_rumble_time = rclcpp::Clock().now();
+    return;
+  }
+
+  if (static_cast<bool>(joy->buttons[stop_button]) && (rclcpp::Clock().now() - m_last_cmd_emstop_time).seconds() > 2.0) {
     if (!is_software_stop) {
       RCLCPP_INFO(this->get_logger(), "Setting software EM stop");
       auto request = std::make_shared<neo_srvs2::srv::RelayBoardSetEMStop::Request>();
@@ -154,14 +187,10 @@ void NeoTeleopAdvanced::joy_callback(const sensor_msgs::msg::Joy::SharedPtr joy)
         auto result = unset_relay_client->async_send_request(request);
         is_software_stop = false;
       } 
-    m_last_cmd_time = rclcpp::Clock().now();
+    m_last_cmd_emstop_time = rclcpp::Clock().now();
   }
 
-  if (deadman_button >= 0 && deadman_button < static_cast<int>(joy->buttons.size())) {
-    is_deadman_pressed = static_cast<bool>(joy->buttons[deadman_button]);
-  } else {
-    is_deadman_pressed = false;
-  }
+
   if (is_deadman_pressed) {
     is_active = true;
     last_joy_time = rclcpp::Clock().now();
