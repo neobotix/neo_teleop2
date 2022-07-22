@@ -134,11 +134,30 @@ private:
   bool is_deadman_pressed = false;
   bool is_software_stop = false;
   bool is_emstop = false;
+  bool request_check_setEM = false;
+  bool request_check_unsetEM = false;
+
 };
 
 void NeoTeleopAdvanced::emstop_callback(const neo_msgs2::msg::EmergencyStopState::SharedPtr msg)
 {
   is_emstop = msg->emergency_button_stop || msg->scanner_stop;
+  if (request_check_setEM) {
+    if (msg->software_stop) {
+      RCLCPP_INFO(this->get_logger(), "Software Emergency stop was confirmed by the service");
+    } else {
+      RCLCPP_ERROR(this->get_logger(), "Software Emergency stop was not confirmed by the service");
+    }
+    request_check_setEM = false;
+  }
+  if (request_check_unsetEM) {
+    if (!msg->software_stop) {
+      RCLCPP_INFO(this->get_logger(), "Software Emergency stop was unset by the service");
+    } else {
+      RCLCPP_ERROR(this->get_logger(), "Software Emergency stop was not unset by the service");
+    }
+    request_check_unsetEM = false;
+  }
 }
 
 void NeoTeleopAdvanced::joy_callback(const sensor_msgs::msg::Joy::SharedPtr joy)
@@ -172,6 +191,7 @@ void NeoTeleopAdvanced::joy_callback(const sensor_msgs::msg::Joy::SharedPtr joy)
 
         auto result = set_relay_client->async_send_request(request);
         is_software_stop = true;
+        request_check_setEM = true;
       } else  {
           RCLCPP_INFO(this->get_logger(), "Unsetting software EM stop");
           auto request = std::make_shared<neo_srvs2::srv::RelayBoardUnSetEMStop::Request>();
@@ -186,6 +206,7 @@ void NeoTeleopAdvanced::joy_callback(const sensor_msgs::msg::Joy::SharedPtr joy)
 
         auto result = unset_relay_client->async_send_request(request);
         is_software_stop = false;
+        request_check_unsetEM = true;
       } 
     m_last_cmd_emstop_time = rclcpp::Clock().now();
   }
