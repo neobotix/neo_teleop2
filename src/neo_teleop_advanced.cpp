@@ -142,7 +142,7 @@ private:
 void NeoTeleopAdvanced::emstop_callback(const neo_msgs2::msg::EmergencyStopState::SharedPtr msg)
 {
   is_emstop = msg->emergency_button_stop || msg->scanner_stop;
-  if (request_check_setEM) {
+  if (request_check_setEM && (rclcpp::Clock().now() - m_last_cmd_emstop_time).seconds() > 1.0) {
     if (msg->software_stop) {
       RCLCPP_INFO(this->get_logger(), "Software Emergency stop was confirmed by the service");
     } else {
@@ -150,7 +150,7 @@ void NeoTeleopAdvanced::emstop_callback(const neo_msgs2::msg::EmergencyStopState
     }
     request_check_setEM = false;
   }
-  if (request_check_unsetEM) {
+  if (request_check_unsetEM && (rclcpp::Clock().now() - m_last_cmd_emstop_time).seconds() > 1.0) {
     if (!msg->software_stop) {
       RCLCPP_INFO(this->get_logger(), "Software Emergency stop was unset by the service");
     } else {
