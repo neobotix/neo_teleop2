@@ -101,11 +101,23 @@ private:
 
   bool is_active = false;
   bool is_deadman_pressed = false;
+  bool is_init = true;
 };
 
 
 void NeoTeleop::joy_callback(const sensor_msgs::msg::Joy::SharedPtr joy)
 {
+  if (is_init){
+    if (joy->axes[axis_linear_x] == 0 &&
+      joy->axes[axis_linear_y] == 0 &&
+      joy->axes[axis_angular_z] == 0) 
+    {
+      RCLCPP_INFO(this->get_logger(), "Joystick is calibrated and ready to use.");
+      is_init = false;  
+    } else {
+      RCLCPP_INFO(this->get_logger(), "Please calibrate the joystick, by moving all the axes.");
+    }    
+  }
   if (deadman_button >= 0 && deadman_button < static_cast<int>(joy->buttons.size())) {
     is_deadman_pressed = static_cast<bool>(joy->buttons[deadman_button]);
   } else {
