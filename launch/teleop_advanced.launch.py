@@ -8,7 +8,7 @@ from ament_index_python.packages import get_package_share_directory
 import launch_ros.actions
 
 def generate_launch_description():
-    config = os.path.join(get_package_share_directory('neo_teleop2'),'launch','default.yaml')
+    config = os.path.join(get_package_share_directory('neo_teleop2'),'launch','default_advanced.yaml')
     return launch.LaunchDescription([
         launch_ros.actions.Node(
             package='neo_teleop2', executable='neo_teleop2_advanced_node', output='screen',
