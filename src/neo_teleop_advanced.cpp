@@ -271,10 +271,10 @@ void NeoTeleopAdvanced::joy_callback(const sensor_msgs::msg::Joy::SharedPtr joy)
     joy_command_x = lin_scale * joy->axes[axis_linear_x];
   }
   if (axis_linear_y >= 0 && axis_linear_y < static_cast<int>(joy->axes.size())) {
-    joy_command_y = lin_scale * joy->axes[axis_linear_y] * -1.0;
+    joy_command_y = lin_scale * joy->axes[axis_linear_y];
   }
   if (axis_angular_z >= 0 && axis_angular_z < static_cast<int>(joy->axes.size())) {
-    joy_command_z = ang_scale * joy->axes[axis_angular_z] * -1.0;
+    joy_command_z = ang_scale * joy->axes[axis_angular_z];
   }
 }
 
