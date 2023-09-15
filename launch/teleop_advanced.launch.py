@@ -15,7 +15,7 @@ def generate_launch_description():
             name='neo_teleop2_advanced_node', parameters = [config]), 
         launch_ros.actions.Node(
             package='joy', 
-            executable='joy_node', 
+            executable='game_controller_node', 
             output='screen',
             name='joy_node',
             parameters = [{'dev': "/dev/input/js0"}, {'deadzone':0.12}, { 'dev_ff': "/dev/input/event8"}])

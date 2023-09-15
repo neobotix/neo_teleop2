@@ -2,16 +2,16 @@
   ros__parameters:
     axis_linear_x: 1
     axis_linear_y: 0
-    axis_angular_z: 2
+    axis_angular_z: 2 # need to fix this for the new node
     scale_angular: 0.3
     scale_linear: 0.3
     smooth: true
     scale_linear_turbo: 0.7
     scale_angular_turbo: 0.7
     enable_button: 1
-    enable_turbo_button: 2
+    enable_turbo_button: 0
     stop_button: 6
 
-    deadman_button: 5   #button on the controller wich has to be pushed while driving
+    deadman_button: 10   #button on the controller wich has to be pushed while driving
     timeOut: 0.1        #timeout to stop robot if no command is recived for X seconds and 
                         #deadman_button is not pushed
