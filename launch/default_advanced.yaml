@@ -8,9 +8,9 @@
     smooth: true
     scale_linear_turbo: 0.7
     scale_angular_turbo: 0.7
-    enable_button: 1
-    enable_turbo_button: 0
-    stop_button: 6
+    enable_button: 1 # Circle button
+    enable_turbo_button: 11 #left - front button for PS5 js
+    stop_button: 6 #start button for PS5 js
 
     deadman_button: 10   #button on the controller wich has to be pushed while driving
     timeOut: 0.1        #timeout to stop robot if no command is recived for X seconds and 
