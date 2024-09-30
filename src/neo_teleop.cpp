@@ -56,6 +56,10 @@ public:
     this->declare_parameter<double>("smooth_factor", 0.2);
     this->declare_parameter<int>("deadman_button", 5);
     this->declare_parameter<double>("joy_timeout", 1.);
+    this->declare_parameter<double>("min_xy_vel", 0.02);
+    this->declare_parameter<double>("max_xy_vel", 1.5);
+    this->declare_parameter<double>("control_rate", 50.0);
+    this->declare_parameter<double>("lin_acc_limit", 1.0);
 
     // Get Paramters
     this->get_parameter("scale_linear_x", linear_scale_x);
@@ -67,6 +71,10 @@ public:
     this->get_parameter("smooth_factor", smooth_factor);
     this->get_parameter("deadman_button", deadman_button);
     this->get_parameter("joy_timeout", joy_timeout);
+    this->get_parameter("min_xy_vel", min_xy_vel);
+    this->get_parameter("max_xy_vel", max_xy_vel);
+    this->get_parameter("control_rate", control_rate);
+    this->get_parameter("lin_acc_limit", lin_acc_limit);
 
     vel_pub = this->create_publisher<geometry_msgs::msg::Twist>("cmd_vel", 1);
     joy_sub = this->create_subscription<sensor_msgs::msg::Joy>(
@@ -78,6 +86,10 @@ public:
 
 protected:
   void joy_callback(const sensor_msgs::msg::Joy::SharedPtr joy);
+  void applyAccelLimit(geometry_msgs::msg::Twist & cmd_vel);
+
+public:
+  double control_rate = 50.0; // Just for neobotix robots
 
 private:
   rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr vel_pub;
@@ -98,6 +110,10 @@ private:
   double joy_command_x = 0;
   double joy_command_y = 0;
   double joy_command_z = 0;
+
+  double min_xy_vel = 0.0;
+  double max_xy_vel = 0.0;
+  double lin_acc_limit = 0.0;
 
   bool is_active = false;
   bool is_deadman_pressed = false;
@@ -127,6 +143,30 @@ void NeoTeleop::joy_callback(const sensor_msgs::msg::Joy::SharedPtr joy)
   }
 }
 
+inline double sign(double value) {
+  return (value > 0.0) ? 1.0 * value : -1.0 * value;
+}
+
+void NeoTeleop::applyAccelLimit(geometry_msgs::msg::Twist & cmd_vel)
+{
+  double min_possible_x_vel = cmd_vel.linear.x - lin_acc_limit * (1/control_rate);
+  min_possible_x_vel = (fabs(min_possible_x_vel) <= 0.02 ) ? 0.0: min_possible_x_vel;
+  double max_possible_x_vel = cmd_vel.linear.x + lin_acc_limit * (1/control_rate);
+  max_possible_x_vel = (fabs(max_possible_x_vel) > 2.0 ) ? sign(max_possible_x_vel) * 0.8: max_possible_x_vel;
+
+  double min_possible_y_vel = cmd_vel.linear.y - lin_acc_limit * (1/control_rate);
+  min_possible_y_vel = (fabs(min_possible_y_vel) <= 0.02 ) ? 0.0: min_possible_y_vel;
+  double max_possible_y_vel = cmd_vel.linear.y + lin_acc_limit * (1/control_rate);
+  max_possible_y_vel = (fabs(max_possible_y_vel) > 2.0 ) ? sign(max_possible_y_vel) * 0.8: max_possible_y_vel;
+
+  double min_possible_yaw_vel = cmd_vel.angular.z - lin_acc_limit * (1/control_rate);
+  double max_possible_yaw_vel = cmd_vel.angular.z + lin_acc_limit * (1/control_rate);
+
+  cmd_vel.linear.x = std::clamp(cmd_vel.linear.x, min_possible_x_vel, max_possible_x_vel);
+  cmd_vel.linear.y = std::clamp(cmd_vel.linear.y, min_possible_y_vel, max_possible_y_vel);
+  cmd_vel.angular.z = std::clamp(cmd_vel.angular.z, min_possible_yaw_vel, max_possible_yaw_vel);
+}
+
 void NeoTeleop::send_cmd()
 {
   if (is_deadman_pressed) {
@@ -134,6 +174,8 @@ void NeoTeleop::send_cmd()
     cmd_vel.linear.x = joy_command_x * smooth_factor + cmd_vel.linear.x * (1 - smooth_factor);
     cmd_vel.linear.y = joy_command_y * smooth_factor + cmd_vel.linear.y * (1 - smooth_factor);
     cmd_vel.angular.z = joy_command_z * smooth_factor + cmd_vel.angular.z * (1 - smooth_factor);
+
+    applyAccelLimit(cmd_vel);
 
     // publish
     vel_pub->publish(cmd_vel);
@@ -146,6 +188,7 @@ void NeoTeleop::send_cmd()
       cmd_vel.linear.x = cmd_vel.linear.x * (1 - smooth_factor);
       cmd_vel.linear.y = cmd_vel.linear.y * (1 - smooth_factor);
       cmd_vel.angular.z = cmd_vel.angular.z * (1 - smooth_factor);
+      applyAccelLimit(cmd_vel);
     }
     // publish
     vel_pub->publish(cmd_vel);
@@ -157,8 +200,7 @@ int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);
   auto nh = std::make_shared<NeoTeleop>();
-  double control_rate = 50;
-  rclcpp::Rate loop_rate(control_rate);
+  rclcpp::Rate loop_rate(nh->control_rate);
 
   while (rclcpp::ok()) {
     nh->send_cmd();
