@@ -86,7 +86,8 @@ public:
 
 protected:
   void joy_callback(const sensor_msgs::msg::Joy::SharedPtr joy);
-  void applyAccelLimit(geometry_msgs::msg::Twist & cmd_vel);
+  void applyAccelLimit(geometry_msgs::msg::Twist & cmd_vel,
+  geometry_msgs::msg::Twist & last_cmd_vel);
 
 public:
   double control_rate = 50.0; // Just for neobotix robots
@@ -95,6 +96,7 @@ private:
   rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr vel_pub;
   rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr joy_sub;
   geometry_msgs::msg::Twist cmd_vel;
+  geometry_msgs::msg::Twist last_cmd_vel;
 
   double linear_scale_x = 0;
   double linear_scale_y = 0;
@@ -147,24 +149,30 @@ inline double sign(double value) {
   return (value > 0.0) ? 1.0 * value : -1.0 * value;
 }
 
-void NeoTeleop::applyAccelLimit(geometry_msgs::msg::Twist & cmd_vel)
+void NeoTeleop::applyAccelLimit(geometry_msgs::msg::Twist & cmd_vel, geometry_msgs::msg::Twist & last_cmd_vel)
 {
-  double min_possible_x_vel = cmd_vel.linear.x - lin_acc_limit * (1/control_rate);
-  min_possible_x_vel = (fabs(min_possible_x_vel) <= 0.02 ) ? 0.0: min_possible_x_vel;
-  double max_possible_x_vel = cmd_vel.linear.x + lin_acc_limit * (1/control_rate);
-  max_possible_x_vel = (fabs(max_possible_x_vel) > 2.0 ) ? sign(max_possible_x_vel) * 0.8: max_possible_x_vel;
+  double min_possible_x_vel = last_cmd_vel.linear.x - lin_acc_limit * (1/control_rate);
+  // min_possible_x_vel = (fabs(min_possible_x_vel) <= 0.02 ) ? 0.0: min_possible_x_vel;
+  double max_possible_x_vel = last_cmd_vel.linear.x + lin_acc_limit * (1/control_rate);
+  // max_possible_x_vel = (fabs(max_possible_x_vel) > 2.0 ) ? sign(max_possible_x_vel) * 0.8: max_possible_x_vel;
 
-  double min_possible_y_vel = cmd_vel.linear.y - lin_acc_limit * (1/control_rate);
-  min_possible_y_vel = (fabs(min_possible_y_vel) <= 0.02 ) ? 0.0: min_possible_y_vel;
-  double max_possible_y_vel = cmd_vel.linear.y + lin_acc_limit * (1/control_rate);
-  max_possible_y_vel = (fabs(max_possible_y_vel) > 2.0 ) ? sign(max_possible_y_vel) * 0.8: max_possible_y_vel;
+  double min_possible_y_vel = last_cmd_vel.linear.y - lin_acc_limit * (1/control_rate);
+  // min_possible_y_vel = (fabs(min_possible_y_vel) <= 0.02 ) ? 0.0: min_possible_y_vel;
+  double max_possible_y_vel = last_cmd_vel.linear.y + lin_acc_limit * (1/control_rate);
+  // max_possible_y_vel = (fabs(max_possible_y_vel) > 2.0 ) ? sign(max_possible_y_vel) * 0.8: max_possible_y_vel;
 
-  double min_possible_yaw_vel = cmd_vel.angular.z - lin_acc_limit * (1/control_rate);
-  double max_possible_yaw_vel = cmd_vel.angular.z + lin_acc_limit * (1/control_rate);
+  double min_possible_yaw_vel = last_cmd_vel.angular.z - lin_acc_limit * (1/control_rate);
+  double max_possible_yaw_vel = last_cmd_vel.angular.z + lin_acc_limit * (1/control_rate);
 
-  cmd_vel.linear.x = std::clamp(cmd_vel.linear.x, min_possible_x_vel, max_possible_x_vel);
-  cmd_vel.linear.y = std::clamp(cmd_vel.linear.y, min_possible_y_vel, max_possible_y_vel);
-  cmd_vel.angular.z = std::clamp(cmd_vel.angular.z, min_possible_yaw_vel, max_possible_yaw_vel);
+  cmd_vel.linear.x = std::min(cmd_vel.linear.x, max_possible_x_vel);
+  cmd_vel.linear.x = std::max(cmd_vel.linear.x, min_possible_x_vel);
+
+  cmd_vel.linear.y = std::min(cmd_vel.linear.y, max_possible_y_vel);
+  cmd_vel.linear.y = std::max(cmd_vel.linear.y, min_possible_y_vel);
+
+  cmd_vel.angular.z = std::min(cmd_vel.angular.z, max_possible_yaw_vel);
+  cmd_vel.angular.z = std::max(cmd_vel.angular.z, min_possible_yaw_vel);
+
 }
 
 void NeoTeleop::send_cmd()
@@ -174,24 +182,25 @@ void NeoTeleop::send_cmd()
     cmd_vel.linear.x = joy_command_x * smooth_factor + cmd_vel.linear.x * (1 - smooth_factor);
     cmd_vel.linear.y = joy_command_y * smooth_factor + cmd_vel.linear.y * (1 - smooth_factor);
     cmd_vel.angular.z = joy_command_z * smooth_factor + cmd_vel.angular.z * (1 - smooth_factor);
-
-    applyAccelLimit(cmd_vel);
-
+    applyAccelLimit(cmd_vel, last_cmd_vel);
     // publish
     vel_pub->publish(cmd_vel);
+    last_cmd_vel = cmd_vel;
   } else if (is_active) {
     if ((rclcpp::Clock().now() - last_joy_time).seconds() > joy_timeout) {
       cmd_vel = geometry_msgs::msg::Twist();      // set to all zero
+      last_cmd_vel = geometry_msgs::msg::Twist();      // set to all zero
       is_active = false;
     } else {
       // smooth towards zero
       cmd_vel.linear.x = cmd_vel.linear.x * (1 - smooth_factor);
       cmd_vel.linear.y = cmd_vel.linear.y * (1 - smooth_factor);
       cmd_vel.angular.z = cmd_vel.angular.z * (1 - smooth_factor);
-      applyAccelLimit(cmd_vel);
+      applyAccelLimit(cmd_vel, last_cmd_vel);
     }
     // publish
     vel_pub->publish(cmd_vel);
+    last_cmd_vel = cmd_vel;
   }
 }
 
