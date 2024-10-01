@@ -11,3 +11,7 @@ neo_teleop2_node:
     deadman_button: 5   #button on the controller wich has to be pushed while driving
     timeOut: 0.1        #timeout to stop robot if no command is recived for X seconds and 
                      #deadman_button is not pushed
+
+    lin_acc_limit: 1.0
+    ang_acc_limit: 1.0
+    smooth_factor: 0.1
