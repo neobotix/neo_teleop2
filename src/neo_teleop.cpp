@@ -53,7 +53,8 @@ public:
     this->declare_parameter<int>("axis_linear_x", 1);
     this->declare_parameter<int>("axis_linear_y", 0);
     this->declare_parameter<int>("axis_angular_z", 2);
-    this->declare_parameter<double>("smooth_factor", 0.2);
+    this->declare_parameter<double>("smooth_factor_up", 0.2);
+    this->declare_parameter<double>("smooth_factor_down", 0.05);
     this->declare_parameter<int>("deadman_button", 5);
     this->declare_parameter<double>("joy_timeout", 1.);
 
@@ -64,7 +65,8 @@ public:
     this->get_parameter("axis_linear_x", axis_linear_x);
     this->get_parameter("axis_linear_y", axis_linear_y);
     this->get_parameter("axis_angular_z", axis_angular_z);
-    this->get_parameter("smooth_factor", smooth_factor);
+    this->get_parameter("smooth_factor_up", smooth_factor_up);
+    this->get_parameter("smooth_factor_down", smooth_factor_down);
     this->get_parameter("deadman_button", deadman_button);
     this->get_parameter("joy_timeout", joy_timeout);
 
@@ -84,20 +86,22 @@ private:
   rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr joy_sub;
   geometry_msgs::msg::Twist cmd_vel;
 
-  double linear_scale_x = 0;
-  double linear_scale_y = 0;
-  double angular_scale_z = 0;
-  double smooth_factor = 1;
-  double joy_timeout = 0;
-  int axis_linear_x = -1;
-  int axis_linear_y = -1;
-  int axis_angular_z = -1;
-  int deadman_button = -1;
+  double linear_scale_x = 0.0;
+  double linear_scale_y = 0.0;
+  double angular_scale_z = 0.0;
+  double smooth_factor = 0.0;
+  double smooth_factor_up = 1.0;
+  double smooth_factor_down = 0.05;
+  double joy_timeout = 0.0;
+  int axis_linear_x = -1.0;
+  int axis_linear_y = -1.0;
+  int axis_angular_z = -1.0;
+  int deadman_button = -1.0;
 
   rclcpp::Time last_joy_time;
-  double joy_command_x = 0;
-  double joy_command_y = 0;
-  double joy_command_z = 0;
+  double joy_command_x = 0.0;
+  double joy_command_y = 0.0;
+  double joy_command_z = 0.0;
 
   bool is_active = false;
   bool is_deadman_pressed = false;
@@ -129,6 +133,13 @@ void NeoTeleop::joy_callback(const sensor_msgs::msg::Joy::SharedPtr joy)
 
 void NeoTeleop::send_cmd()
 {
+  if ((fabs(cmd_vel.linear.x) > 0.0 && joy_command_x == 0.0) ||
+      (fabs(cmd_vel.linear.y) > 0.0 && joy_command_y == 0.0) ||
+      (fabs(cmd_vel.angular.z) > 0.0 && joy_command_z == 0.0)) {
+    smooth_factor = smooth_factor_down;
+  } else {
+    smooth_factor = smooth_factor_up;
+  }
   if (is_deadman_pressed) {
     // smooth inputs
     cmd_vel.linear.x = joy_command_x * smooth_factor + cmd_vel.linear.x * (1 - smooth_factor);
