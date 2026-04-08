@@ -18,11 +18,12 @@ find_package(geometry_msgs REQUIRED)
 
 add_executable(neo_teleop2_node src/neo_teleop.cpp)
 
-ament_target_dependencies(neo_teleop2_node
-  rclcpp
-  sensor_msgs
-  geometry_msgs
-  trajectory_msgs)
+target_link_libraries(neo_teleop2_node
+  rclcpp::rclcpp
+  ${sensor_msgs_TARGETS}
+  ${geometry_msgs_TARGETS}
+  ${trajectory_msgs_TARGETS}
+)
 
 
 install(TARGETS neo_teleop2_node DESTINATION lib/${PROJECT_NAME})
