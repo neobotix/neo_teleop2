@@ -34,6 +34,7 @@
 
 #include <sensor_msgs/msg/joy.hpp>
 #include <geometry_msgs/msg/twist.hpp>
+#include <geometry_msgs/msg/twist_stamped.hpp>
 #include <memory>
 #include "rclcpp/rclcpp.hpp"
 
@@ -56,6 +57,7 @@ public:
     this->declare_parameter<double>("smooth_factor", 0.2);
     this->declare_parameter<int>("deadman_button", 5);
     this->declare_parameter<double>("joy_timeout", 1.);
+    this->declare_parameter<bool>("twist_stamped", true);
 
     // Get Paramters
     this->get_parameter("scale_linear_x", linear_scale_x);
@@ -67,8 +69,13 @@ public:
     this->get_parameter("smooth_factor", smooth_factor);
     this->get_parameter("deadman_button", deadman_button);
     this->get_parameter("joy_timeout", joy_timeout);
+    this->get_parameter("twist_stamped", twist_stamped);
 
-    vel_pub = this->create_publisher<geometry_msgs::msg::Twist>("cmd_vel", 1);
+    if (twist_stamped) {
+      vel_pub_stamped = this->create_publisher<geometry_msgs::msg::TwistStamped>("cmd_vel", 1);
+    } else {
+      vel_pub = this->create_publisher<geometry_msgs::msg::Twist>("cmd_vel", 1);
+    }
     joy_sub = this->create_subscription<sensor_msgs::msg::Joy>(
       "joy", 1,
       std::bind(&NeoTeleop::joy_callback, this, _1));
@@ -81,8 +88,10 @@ protected:
 
 private:
   rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr vel_pub;
+  rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr vel_pub_stamped;
   rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr joy_sub;
   geometry_msgs::msg::Twist cmd_vel;
+  geometry_msgs::msg::TwistStamped cmd_vel_stamped;
 
   double linear_scale_x = 0;
   double linear_scale_y = 0;
@@ -101,6 +110,7 @@ private:
 
   bool is_active = false;
   bool is_deadman_pressed = false;
+  bool twist_stamped = false;
 };
 
 
@@ -136,7 +146,13 @@ void NeoTeleop::send_cmd()
     cmd_vel.angular.z = joy_command_z * smooth_factor + cmd_vel.angular.z * (1 - smooth_factor);
 
     // publish
-    vel_pub->publish(cmd_vel);
+    if (twist_stamped) {
+      cmd_vel_stamped.header.stamp = this->now();
+      cmd_vel_stamped.twist = cmd_vel;
+      vel_pub_stamped->publish(cmd_vel_stamped);
+    } else {
+      vel_pub->publish(cmd_vel);
+    }
   } else if (is_active) {
     if ((rclcpp::Clock().now() - last_joy_time).seconds() > joy_timeout) {
       cmd_vel = geometry_msgs::msg::Twist();      // set to all zero
@@ -148,10 +164,15 @@ void NeoTeleop::send_cmd()
       cmd_vel.angular.z = cmd_vel.angular.z * (1 - smooth_factor);
     }
     // publish
-    vel_pub->publish(cmd_vel);
+    if (twist_stamped) {
+      cmd_vel_stamped.header.stamp = this->now();
+      cmd_vel_stamped.twist = cmd_vel;
+      vel_pub_stamped->publish(cmd_vel_stamped);
+    } else {
+      vel_pub->publish(cmd_vel);
+    }
   }
 }
-
 
 int main(int argc, char ** argv)
 {
