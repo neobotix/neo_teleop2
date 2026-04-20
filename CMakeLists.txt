@@ -15,6 +15,8 @@ find_package(rclcpp_lifecycle REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(trajectory_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(neo_srvs2 REQUIRED)
+find_package(neo_msgs2 REQUIRED)
 
 add_executable(neo_teleop2_node src/neo_teleop.cpp)
 
@@ -22,10 +24,23 @@ ament_target_dependencies(neo_teleop2_node
   rclcpp
   sensor_msgs
   geometry_msgs
-  trajectory_msgs)
+  trajectory_msgs
+  neo_srvs2
+  neo_msgs2)
+
+add_executable(neo_teleop2_advanced_node src/neo_teleop_advanced.cpp)
+
+ament_target_dependencies(neo_teleop2_advanced_node
+  rclcpp
+  sensor_msgs
+  geometry_msgs
+  trajectory_msgs
+  neo_srvs2
+  neo_msgs2)
 
 
 install(TARGETS neo_teleop2_node DESTINATION lib/${PROJECT_NAME})
+install(TARGETS neo_teleop2_advanced_node DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY launch
     
