@@ -71,7 +71,8 @@ public:
     this->get_parameter("joy_timeout", joy_timeout);
     this->get_parameter("twist_stamped", twist_stamped);
 
-    if (twist_stamped) {
+    cmd_vel_frame_ = this->declare_parameter<std::string>("frame_id", "base_link");
+    if (this->declare_parameter<bool>("enable_stamped_cmd_vel", twist_stamped)) {
       vel_pub_stamped = this->create_publisher<geometry_msgs::msg::TwistStamped>("cmd_vel", 1);
     } else {
       vel_pub = this->create_publisher<geometry_msgs::msg::Twist>("cmd_vel", 1);
@@ -87,11 +88,24 @@ protected:
   void joy_callback(const sensor_msgs::msg::Joy::SharedPtr joy);
 
 private:
-  rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr vel_pub;
+  void publish_cmd()
+  {
+    if (vel_pub_stamped) {
+      geometry_msgs::msg::TwistStamped message;
+      message.header.stamp = this->now();
+      message.header.frame_id = cmd_vel_frame_;
+      message.twist = cmd_vel;
+      vel_pub_stamped->publish(message);
+    } else {
+      vel_pub->publish(cmd_vel);
+    }
+  }
+
+  std::string cmd_vel_frame_;
   rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr vel_pub_stamped;
+  rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr vel_pub;
   rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr joy_sub;
   geometry_msgs::msg::Twist cmd_vel;
-  geometry_msgs::msg::TwistStamped cmd_vel_stamped;
 
   double linear_scale_x = 0;
   double linear_scale_y = 0;
@@ -146,13 +160,7 @@ void NeoTeleop::send_cmd()
     cmd_vel.angular.z = joy_command_z * smooth_factor + cmd_vel.angular.z * (1 - smooth_factor);
 
     // publish
-    if (twist_stamped) {
-      cmd_vel_stamped.header.stamp = this->now();
-      cmd_vel_stamped.twist = cmd_vel;
-      vel_pub_stamped->publish(cmd_vel_stamped);
-    } else {
-      vel_pub->publish(cmd_vel);
-    }
+    publish_cmd();
   } else if (is_active) {
     if ((rclcpp::Clock().now() - last_joy_time).seconds() > joy_timeout) {
       cmd_vel = geometry_msgs::msg::Twist();      // set to all zero
@@ -164,13 +172,7 @@ void NeoTeleop::send_cmd()
       cmd_vel.angular.z = cmd_vel.angular.z * (1 - smooth_factor);
     }
     // publish
-    if (twist_stamped) {
-      cmd_vel_stamped.header.stamp = this->now();
-      cmd_vel_stamped.twist = cmd_vel;
-      vel_pub_stamped->publish(cmd_vel_stamped);
-    } else {
-      vel_pub->publish(cmd_vel);
-    }
+    publish_cmd();
   }
 }
 

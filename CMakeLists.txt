@@ -1,7 +1,7 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.20)
 project(neo_teleop2)
 if(NOT CMAKE_CXX_STANDARD)
-  set(CMAKE_CXX_STANDARD 14)
+  set(CMAKE_CXX_STANDARD 17)
 endif()
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -18,11 +18,11 @@ find_package(geometry_msgs REQUIRED)
 
 add_executable(neo_teleop2_node src/neo_teleop.cpp)
 
-ament_target_dependencies(neo_teleop2_node
-  rclcpp
-  sensor_msgs
-  geometry_msgs
-  trajectory_msgs)
+target_link_libraries(neo_teleop2_node PRIVATE
+  rclcpp::rclcpp
+  sensor_msgs::sensor_msgs
+  geometry_msgs::geometry_msgs
+  trajectory_msgs::trajectory_msgs)
 
 
 install(TARGETS neo_teleop2_node DESTINATION lib/${PROJECT_NAME})
